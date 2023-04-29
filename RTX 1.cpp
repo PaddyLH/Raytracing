@@ -40,7 +40,8 @@ void Resize(HWND Window) {
 
     // Allocate memory for the bitmap
 
-    BitmapMemory = 
+    VirtualFree(BitmapMemory, 0, MEM_RELEASE);
+
     BitmapMemory = VirtualAlloc(0,
         BitmapWidth * BitmapHeight * 4,
         MEM_RESERVE | MEM_COMMIT,
@@ -175,7 +176,6 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CmdLine, i
         BITMAPINFO BitmapInfo;
         BitmapInfo.bmiHeader.biSize = sizeof(BitmapInfo.bmiHeader);
         BitmapInfo.bmiHeader.biWidth = BitmapWidth;
-        // Negative height makes top left as the coordinate system origin for the DrawPixel function, otherwise its bottom left
         BitmapInfo.bmiHeader.biHeight = -BitmapHeight;
         BitmapInfo.bmiHeader.biPlanes = 1;
         BitmapInfo.bmiHeader.biBitCount = 32;
