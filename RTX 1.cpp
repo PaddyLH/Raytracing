@@ -142,16 +142,17 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CmdLine, i
     sphere1.colour = vec3(1, 0.1, 0.1);
     Object sphere2(vec3(3, 0, 12), 0.5);
     sphere2.colour = vec3(0.1, 1, 0.1);
-    Object sphere3(vec3(4, 12, 12), 1.5);
+    Object sphere3(vec3(4, -12, 12), 1.5);
     sphere3.colour = vec3(1, 1, 1);
 
     worldObjects.push_back(sphere1);
     worldObjects.push_back(sphere2);
     worldObjects.push_back(sphere3);
 
-    worldData.bounce_limit = 1;
+    worldData.bounce_limit = 2;
     worldData.scene_colour = vec3(0.4, 0.4, 1);
     worldData.sky_boundary = 100;
+    worldData.sun_direction = vec3(0, -1, 0);
 
 
     while (Running) {
@@ -166,7 +167,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CmdLine, i
 
         for (int x = 0; x < BitmapWidth; x++)
             for (int y = 0; y < BitmapHeight; y++) 
-                DrawPixel(x, ClientHeight - y, raycast(worldCamera.coord_ray(x, y)));
+                DrawPixel(x, y, raycast(worldCamera.coord_ray(x, y)));
             
             
             

@@ -56,7 +56,7 @@ vec3 operator*(vec3& v1, vec3& v2) {
 vec3 operator/(vec3& v1, vec3& v2) {
 	return vec3(v1.x / v2.x, v1.y / v2.y, v1.z / v2.z);
 }
-vec3 operator*(vec3& v1, double k) {
+vec3 operator*(vec3 v1, double k) {
 	return vec3(v1.x * k, v1.y * k, v1.z  * k);
 }
 
@@ -193,6 +193,7 @@ struct SceneData {
 	double sky_boundary = 100;
 
 	vec3 scene_colour;
+	vec3 sun_direction;
 
 };
 
@@ -238,6 +239,16 @@ struct Camera {
 
 };
 
+double dot_product(vec3& a, vec3& b) {
+	return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
+}
+double magnitude(vec3& v) {
+	return sqrt((v.x * v.x) + (v.y * v.y) + (v.z * v.z));
+}
+
+double angle_between(vec3& a, vec3& b) {
+	return acos(dot_product(a, b) / (magnitude(a) * magnitude(b)));
+}
 
 vec3 raycast(ray r) {
 
@@ -256,12 +267,24 @@ vec3 raycast(ray r) {
 				collided = true;
 				ray_colour *= obj.colour;
 				bounces += 1;
+
+				r.direction = data.normal_collide;
+				r.position = data.point;
 			}
 
 		}
 
 		if (!collided) {
 			ray_colour *= worldData.scene_colour;
+
+			double angle = angle_between(r.direction, worldData.sun_direction);
+			if (angle > 3.1415 * 0.5) {
+				ray_colour *= 0;
+			}
+			else {
+				ray_colour *= 1 - (angle / (3.1415 * 0.5));
+			}
+
 			break;
 		}
 	}
