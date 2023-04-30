@@ -21,7 +21,7 @@ struct vec3 {
 		return u32(255.0 * z) + (u32(255.0 * y) << 8) + (u32(255.0 * x) << 16);
 	}
 
-	vec3& operator+=(vec3& v) {
+	vec3 operator+=(vec3 v) {
 		x += v.x; y += v.y; z += v.z;
 		return *this;
 	}
@@ -47,6 +47,13 @@ struct vec3 {
 	}
 };
 
+vec3 u32_colour(u32 x) {
+	return vec3(
+		double((x >> 16) & 0xff) / double(0xff),
+		double((x >> 8) & 0xff) / double(0xff),
+		double(x & 0xff) / double(0xff)
+	);
+}
 
 vec3 operator+(vec3& v1, vec3& v2) {
 	return vec3(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
@@ -54,7 +61,7 @@ vec3 operator+(vec3& v1, vec3& v2) {
 vec3 operator-(vec3& v1, vec3& v2) {
 	return vec3(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
 }
-vec3 operator*(vec3& v1, vec3& v2) {
+vec3 operator*(vec3 v1, vec3 v2) {
 	return vec3(v1.x * v2.x, v1.y * v2.y, v1.z * v2.z);
 }
 vec3 operator/(vec3& v1, vec3& v2) {
@@ -63,7 +70,12 @@ vec3 operator/(vec3& v1, vec3& v2) {
 vec3 operator*(vec3 v1, double k) {
 	return vec3(v1.x * k, v1.y * k, v1.z  * k);
 }
-
+vec3 operator*(double k, vec3 v1) {
+	return vec3(v1.x * k, v1.y * k, v1.z * k);
+}
+double distance(vec3 v1, vec3 v2) {
+	return sqrt(pow(v1.x - v2.z, 2) + pow(v1.y - v2.y, 2) + pow(v1.z - v2.z, 2) );
+}
 void rotate_x(vec3& v1, double o) {
 	double z = v1.z, y = v1.y;
 	v1.y = (y * cos(o)) - (z * sin(o));
@@ -78,6 +90,23 @@ void rotate_z(vec3& v1, double o) {
 	double x = v1.x, y = v1.y;
 	v1.x = (x * cos(o)) - (y * sin(o));
 	v1.y = (x * sin(o)) + (y * cos(o));
+}
+double dot_product(vec3& a, vec3& b) {
+	return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
+}
+double magnitude(vec3& v) {
+	return sqrt((v.x * v.x) + (v.y * v.y) + (v.z * v.z));
+}
+
+double angle_between(vec3 a, vec3 b) {
+	return acos(dot_product(a, b) / (magnitude(a) * magnitude(b)));
+}
+vec3 lerp(vec3 a, vec3 b, double k) {
+	return vec3(
+		(a.x * (1.0 - k)) + (b.x * k),
+		(a.y * (1.0 - k)) + (b.y * k),
+		(a.z * (1.0 - k)) + (b.z * k)
+	);
 }
 
 struct ray {
@@ -96,11 +125,23 @@ enum ShapeType : int {
 	sphere = 2,
 	cuboid = 3
 };
+
+struct material {
+	vec3 colour;
+
+	vec3 emissionColour;
+	double emissionStrength;
+
+	double specularStrength = 0;
+
+};
+
 struct ray_collision {
 	vec3 normal_collide;
 	vec3 point;
 	bool collided = false;
-	double t = 1000000000;
+	double dist = 1000000;
+	material mat;
 };
 
 struct Object {
@@ -108,9 +149,7 @@ struct Object {
 	ShapeType type = none;
 
 	// Material Details
-	vec3 colour = vec3(0, 0, 0);
-	double reflective = 0;
-	double emission = 0;
+	material mat;
 
 	// Circle
 	double sphere_radius = 0;
@@ -178,7 +217,8 @@ struct Object {
 				data.normal_collide.y = (data.point.y - sphere_position.y) / sphere_radius;
 				data.normal_collide.z = (data.point.z - sphere_position.z) / sphere_radius;
 				
-				data.t = t;
+				data.dist = distance(data.point, r.position);
+				data.mat = mat;
 			}
 
 			return data;
@@ -206,6 +246,7 @@ struct Object {
 struct SceneData {
 
 	int bounce_limit = 1;
+	int rays_per_pixel = 1;
 	double sky_boundary = 100;
 
 	vec3 scene_colour;
@@ -233,17 +274,18 @@ struct Camera {
 	void set_size(int x, int y) {
 		dx = double(x - 1) / 2.0;
 		dy = double(y - 1) / 2.0;
-		scale = worldData.sky_boundary / double(max(x, y));
+		scale = 1.0 / double(max(x, y));
 	}
 
 	ray coord_ray(int x, int y) {
 		vec3 point;
 		point.x = scale * (double(x) - dx);
 		point.y = scale * (double(y) - dy);
-		point.z = focal * worldData.sky_boundary;
+		point.z = focal;
 		rotate_x(point, direction.x);
 		rotate_y(point, direction.y);
 		rotate_z(point, direction.z);
+		point /= magnitude(point);
 		return ray(position, point);
 	}
 
@@ -252,154 +294,110 @@ struct Camera {
 
 Camera worldCamera;
 
-double dot_product(vec3& a, vec3& b) {
-	return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
-}
-double magnitude(vec3& v) {
-	return sqrt((v.x * v.x) + (v.y * v.y) + (v.z * v.z));
-}
-
-double angle_between(vec3& a, vec3& b) {
-	return acos(dot_product(a, b) / (magnitude(a) * magnitude(b)));
-}
-
 double random() {
-	return double(rand() / 65536.0);
+	return double(rand()) / 65536.0;
 }
 double random(double a, double b) {
 	return (random() * (b - a)) + a;
 }
 
+vec3 random_direction() {
+	vec3 p;
+	while (true) {
+		p.x = random(-1, 1);
+		p.y = random(-1, 1);
+		p.z = random(-1, 1);
+		double dist = magnitude(p);
+
+		if (dist <= 1) {
+			p /= sqrt(dist);
+			return p;
+		}
+	}
+}
+
 vec3 random_hemi(vec3 normal) {
 	vec3 dir = normal;
-	double ox = random(-1, 1) * (3.1415 / 2);
-	double oy = random(-1, 1) * (3.1415 / 2);
-
-	rotate_x(dir, ox);
-	rotate_y(dir, oy);
+	rotate_x(dir, random(-1, 1) * (3.1415926 / 2));
+	rotate_y(dir, random(-1, 1) * (3.1415926 / 2));
 	return dir;
 }
 
-vec3 raycast(ray r) {
 
-	vec3 ray_colour(1, 1, 1);
-	ray backup_ray = r;
-	backup_ray.direction /= worldData.sky_boundary;
 
-	int bounces = 0;
-	bool hit_source = false;
+ray_collision CalculateCollision(ray r) {
+	ray_collision data;
+	double closest_dist = 10000000;
 
-	while (bounces < worldData.bounce_limit) {
-
-		ray_collision c_data;
-		Object* object = nullptr;
-
-		for (int i = 0; i < worldObjects.size(); i++) {
-			ray_collision data = worldObjects[i].collided(r);
-			if (data.collided && c_data.t > data.t) {
-				c_data = data; object = &worldObjects[i];
-			}
+	for (Object& obj : worldObjects) {
+		ray_collision rc = obj.collided(r);
+		if (rc.dist < closest_dist) {
+			data = rc; closest_dist = rc.dist;
 		}
+	}
 
-		if (c_data.collided && object != nullptr) {
+	return data;
+}
+
+vec3 ground_colour = vec3(0.1, 0.1, 0.1);
+vec3 sky_colour_1 = vec3(6.0 / 255.0, 70.0 / 255.0, 131.0 / 255.0);
+vec3 sky_colour_2 = vec3(194.0 / 255.0, 234.0 / 255.0, 236.0 / 255.0);
+
+vec3 scene_colour(vec3 dir) {
+	double s = angle_between(dir, vec3(0, -1, 0)) / (3.14159265 / 2);
+	if (s > 1.3)
+		return ground_colour;
+	s /= 1.3;
+
+	return vec3(
+		sky_colour_1.x * s + (sky_colour_2.x * (1 - s)),
+		sky_colour_1.y * s + (sky_colour_2.y * (1 - s)),
+		sky_colour_1.z * s + (sky_colour_2.z * (1 - s))
+	);
+}
+
+vec3 raytrace(ray r) {
+
+	vec3 incomingLight = vec3(0, 0, 0);
+	vec3 raycolour = vec3(1, 1, 1);
+
+	for (int bounce = 0; bounce <= worldData.bounce_limit; bounce++) {
+
+		ray_collision rc = CalculateCollision(r);
+
+
+		if (rc.collided) 
+		{
+			r.position = rc.point;
+
+			vec3 scaled = rc.normal_collide * (2 * dot_product(r.direction, rc.normal_collide));
+			vec3 specularDir = r.direction - scaled;
 			
-			if (object->emission > 0) {
-				ray_colour *= object->colour;
-				ray_colour *= object->emission;
-				return ray_colour;
-			}
+			vec3 diffuseDir = random_hemi(rc.normal_collide);;
 
-			r.position = c_data.point;
-			r.direction = c_data.normal_collide;
+			r.direction = lerp(diffuseDir, specularDir, rc.mat.specularStrength);
 
-			vec3 rl = vec3(
-				lightSource->sphere_position.x - r.position.x,
-				lightSource->sphere_position.y - r.position.y,
-				lightSource->sphere_position.z - r.position.z
-			);
-
-			ray rr(r.position, rl);
-
-			bool shadow = false;
-			for (int i = 0; i < worldObjects.size(); i++) {
-
-				if (&worldObjects[i] == lightSource)
-					continue;
-
-				ray_collision rc = worldObjects[i].collided(rr);
-				if (rc.collided) {
-					shadow = true; break;
-				}
-
-			}
-
-			if (shadow) {
-
-				ray_colour *= object->colour;
-				ray_colour *= 0.2;
-
-			}
-			else 
-			{
-				double hf = 0;
-
-				
-				ray_colour *= object->colour;
-
-				vec3 light(lightSource->sphere_position.x - r.position.x,
-					lightSource->sphere_position.y - r.position.y,
-					lightSource->sphere_position.z - r.position.z);
-				light /= magnitude(light);
-
-				
-
-				double ka = 0.2, kd = 0.8;
-				double s = dot_product(light, r.direction);
-
-				if (s < 0)
-					s = 0;
-
-				ray_colour = vec3(
-					(ka * ray_colour.x) + (kd * s * ray_colour.x) + hf,
-					(ka * ray_colour.y) + (kd * s * ray_colour.y) + hf,
-					(ka * ray_colour.z) + (kd * s * ray_colour.z) + hf
-				);
-			}
-
-			bounces += 1;
-			return ray_colour;
+			vec3 emittedLight = rc.mat.emissionColour;
+			emittedLight *= rc.mat.emissionStrength;
+			incomingLight += emittedLight * raycolour;
+			raycolour *= rc.mat.colour;
+			//raycolour *= dot_product(r.direction, rc.normal_collide);
 		}
 		else 
 		{
-			r.position = backup_ray.direction + backup_ray.position;
-			r.direction = vec3(
-				lightSource->sphere_position.x - r.position.x,
-				lightSource->sphere_position.y - r.position.y,
-				lightSource->sphere_position.z - r.position.z
-			);
-
-			bool shadow = false;
-			for (Object& obj : worldObjects) {
-
-				if (&obj == lightSource)
-					continue;
-
-				ray_collision rc = obj.collided(r);
-				if (rc.collided) {
-					shadow = true; break;
-				}
-			}
-
-			ray_colour *= worldData.scene_colour;
-
-			if (shadow) 
-				ray_colour *= 0.5;
-			
-			
+			incomingLight += raycolour * scene_colour(r.direction);
 			break;
 		}
 	}
 
-	
+	return incomingLight;
+}
+
+vec3 ray_func(ray r) {
+	vec3 ray_colour;
+	for (int i = 0; i < worldData.rays_per_pixel; i++) {
+		ray_colour += raytrace(r);
+	} ray_colour /= worldData.rays_per_pixel;
 	return ray_colour;
 }
+
