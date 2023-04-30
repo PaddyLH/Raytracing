@@ -15,7 +15,6 @@ int mouse_start_x, mouse_start_y;
 bool mouse_down = false;
 
 
-Camera worldCamera;
 
 // Draws a pixel at X, Y (from top left corner)
 void DrawPixel(int X, int Y, u32 Color) {
@@ -141,17 +140,26 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CmdLine, i
 
     Object sphere1(vec3(0, 0, 12), 1);
     sphere1.colour = vec3(1, 0.1, 0.1);
+    sphere1.reflective = 0.3;
     Object sphere2(vec3(3, 0, 12), 0.5);
     sphere2.colour = vec3(0.1, 1, 0.1);
-    Object sphere3(vec3(4, -12, 12), 1.5);
-    sphere3.colour = vec3(1, 1, 1);
+    Object sphere3(vec3(8, -15, 0), 6);
+    sphere3.colour = vec3(1, 1, 0);
+    sphere3.emission = 1;
+    Object sphere4(vec3(0, 140, 0), 138);
+    sphere4.colour = vec3(0.9, 0.9, 0.9);
+
+    worldCamera.position = vec3(0, -5, 0);
 
     worldObjects.push_back(sphere1);
     worldObjects.push_back(sphere2);
     worldObjects.push_back(sphere3);
+    worldObjects.push_back(sphere4);
 
-    worldData.bounce_limit = 2;
-    worldData.scene_colour = vec3(0.4, 0.4, 1);
+    lightSource = &worldObjects[2];
+
+    worldData.bounce_limit = 1;
+    worldData.scene_colour = vec3(0.5, 0.5, 1);
     worldData.sky_boundary = 100;
     worldData.sun_direction = vec3(0, -1, 0);
 
@@ -166,6 +174,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CmdLine, i
 
         ClearScreen(0xffffff);
 
+        srand(0);
         for (int x = 0; x < BitmapWidth; x++)
             for (int y = 0; y < BitmapHeight; y++) 
                 DrawPixel(x, y, raycast(worldCamera.coord_ray(x, y)));

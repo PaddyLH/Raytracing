@@ -41,6 +41,10 @@ struct vec3 {
 		x *= v; y *= v; z *= v;
 		return *this;
 	}
+	vec3& operator/=(double v) {
+		x /= v; y /= v; z /= v;
+		return *this;
+	}
 };
 
 
@@ -84,17 +88,19 @@ struct ray {
 	}
 };
 
-struct ray_collision {
-	vec3 normal_collide;
-	vec3 point;
-	bool collided = false;
-};
+
 
 enum ShapeType : int {
 	none = 0,
 	tri = 1,
 	sphere = 2,
 	cuboid = 3
+};
+struct ray_collision {
+	vec3 normal_collide;
+	vec3 point;
+	bool collided = false;
+	double t = 1000000000;
 };
 
 struct Object {
@@ -148,9 +154,9 @@ struct Object {
 				+ (r.position.x * r.position.x)
 				+ (r.position.y * r.position.y)
 				+ (r.position.z * r.position.z)
-				- 2 * ((sphere_position.x * r.position.x)
+				- (2 * ((sphere_position.x * r.position.x)
 					+ (sphere_position.y * r.position.y)
-					+ (sphere_position.z * r.position.z))
+					+ (sphere_position.z * r.position.z)))
 				- (sphere_radius * sphere_radius);
 			double d = (b * b) - (4 * a * c);
 
@@ -158,6 +164,12 @@ struct Object {
 
 			if (data.collided) {
 				double t = -(b + sqrt(d)) / (2.0 * a);
+
+				if (t < 0) {
+					data.collided = false;
+					return data;
+				}
+
 				data.point.x = r.position.x + (t * r.direction.x);
 				data.point.y = r.position.y + (t * r.direction.y);
 				data.point.z = r.position.z + (t * r.direction.z);
@@ -165,6 +177,8 @@ struct Object {
 				data.normal_collide.x = (data.point.x - sphere_position.x) / sphere_radius;
 				data.normal_collide.y = (data.point.y - sphere_position.y) / sphere_radius;
 				data.normal_collide.z = (data.point.z - sphere_position.z) / sphere_radius;
+				
+				data.t = t;
 			}
 
 			return data;
@@ -187,6 +201,8 @@ struct Object {
 
 };
 
+
+
 struct SceneData {
 
 	int bounce_limit = 1;
@@ -197,16 +213,11 @@ struct SceneData {
 
 };
 
-struct ray_collide {
-
-	vec3 normal_collide;
-	vec3 point;
-
-};
-
 
 SceneData worldData;
 vector<Object> worldObjects;
+Object* lightSource;
+
 
 struct Camera {
 
@@ -222,8 +233,7 @@ struct Camera {
 	void set_size(int x, int y) {
 		dx = double(x - 1) / 2.0;
 		dy = double(y - 1) / 2.0;
-		scale = 1.0 / double(max(x, y));
-		scale *= worldData.sky_boundary;
+		scale = worldData.sky_boundary / double(max(x, y));
 	}
 
 	ray coord_ray(int x, int y) {
@@ -239,6 +249,9 @@ struct Camera {
 
 };
 
+
+Camera worldCamera;
+
 double dot_product(vec3& a, vec3& b) {
 	return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
 }
@@ -250,44 +263,143 @@ double angle_between(vec3& a, vec3& b) {
 	return acos(dot_product(a, b) / (magnitude(a) * magnitude(b)));
 }
 
+double random() {
+	return double(rand() / 65536.0);
+}
+double random(double a, double b) {
+	return (random() * (b - a)) + a;
+}
+
+vec3 random_hemi(vec3 normal) {
+	vec3 dir = normal;
+	double ox = random(-1, 1) * (3.1415 / 2);
+	double oy = random(-1, 1) * (3.1415 / 2);
+
+	rotate_x(dir, ox);
+	rotate_y(dir, oy);
+	return dir;
+}
+
 vec3 raycast(ray r) {
 
 	vec3 ray_colour(1, 1, 1);
+	ray backup_ray = r;
+	backup_ray.direction /= worldData.sky_boundary;
 
 	int bounces = 0;
+	bool hit_source = false;
 
 	while (bounces < worldData.bounce_limit) {
 
-		bool collided = false;
+		ray_collision c_data;
+		Object* object = nullptr;
 
-		for (Object& obj : worldObjects) {
-
-			ray_collision data = obj.collided(r);
-			if (data.collided) {
-				collided = true;
-				ray_colour *= obj.colour;
-				bounces += 1;
-
-				r.direction = data.normal_collide;
-				r.position = data.point;
+		for (int i = 0; i < worldObjects.size(); i++) {
+			ray_collision data = worldObjects[i].collided(r);
+			if (data.collided && c_data.t > data.t) {
+				c_data = data; object = &worldObjects[i];
 			}
-
 		}
 
-		if (!collided) {
+		if (c_data.collided && object != nullptr) {
+			
+			if (object->emission > 0) {
+				ray_colour *= object->colour;
+				ray_colour *= object->emission;
+				return ray_colour;
+			}
+
+			r.position = c_data.point;
+			r.direction = c_data.normal_collide;
+
+			vec3 rl = vec3(
+				lightSource->sphere_position.x - r.position.x,
+				lightSource->sphere_position.y - r.position.y,
+				lightSource->sphere_position.z - r.position.z
+			);
+
+			ray rr(r.position, rl);
+
+			bool shadow = false;
+			for (int i = 0; i < worldObjects.size(); i++) {
+
+				if (&worldObjects[i] == lightSource)
+					continue;
+
+				ray_collision rc = worldObjects[i].collided(rr);
+				if (rc.collided) {
+					shadow = true; break;
+				}
+
+			}
+
+			if (shadow) {
+
+				ray_colour *= object->colour;
+				ray_colour *= 0.2;
+
+			}
+			else 
+			{
+				double hf = 0;
+
+				
+				ray_colour *= object->colour;
+
+				vec3 light(lightSource->sphere_position.x - r.position.x,
+					lightSource->sphere_position.y - r.position.y,
+					lightSource->sphere_position.z - r.position.z);
+				light /= magnitude(light);
+
+				
+
+				double ka = 0.2, kd = 0.8;
+				double s = dot_product(light, r.direction);
+
+				if (s < 0)
+					s = 0;
+
+				ray_colour = vec3(
+					(ka * ray_colour.x) + (kd * s * ray_colour.x) + hf,
+					(ka * ray_colour.y) + (kd * s * ray_colour.y) + hf,
+					(ka * ray_colour.z) + (kd * s * ray_colour.z) + hf
+				);
+			}
+
+			bounces += 1;
+			return ray_colour;
+		}
+		else 
+		{
+			r.position = backup_ray.direction + backup_ray.position;
+			r.direction = vec3(
+				lightSource->sphere_position.x - r.position.x,
+				lightSource->sphere_position.y - r.position.y,
+				lightSource->sphere_position.z - r.position.z
+			);
+
+			bool shadow = false;
+			for (Object& obj : worldObjects) {
+
+				if (&obj == lightSource)
+					continue;
+
+				ray_collision rc = obj.collided(r);
+				if (rc.collided) {
+					shadow = true; break;
+				}
+			}
+
 			ray_colour *= worldData.scene_colour;
 
-			double angle = angle_between(r.direction, worldData.sun_direction);
-			if (angle > 3.1415 * 0.5) {
-				ray_colour *= 0;
-			}
-			else {
-				ray_colour *= 1 - (angle / (3.1415 * 0.5));
-			}
-
+			if (shadow) 
+				ray_colour *= 0.5;
+			
+			
 			break;
 		}
 	}
+
 	
 	return ray_colour;
 }
