@@ -203,36 +203,48 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CmdLine, i
 
 
 
-    Object sphere1(vec3(0, 1, 12), 1);
-    sphere1.mat.colour = vec3(1, 0.2, 0.2);
-    sphere1.mat.specularStrength = 0.9;
-    Object sphere2(vec3(3, 1, 12), 1);
-    sphere2.mat.colour = vec3(0.2, 1, 0.2);
-    sphere2.mat.specularStrength = 0.9;
 
-    //Object sphere3(vec3(8, -25, 0), 15);
-    //sphere3.mat.colour = vec3(1, 1, 1);
-    //sphere3.mat.emissionColour = vec3(1, 1, 1);
-    //sphere3.mat.emissionStrength = 1.0;
+    Object groundSphere(vec3(0, 140, 0), 139);
+    groundSphere.mat.colour = vec3(0.9, 0.9, 0.9);
+    groundSphere.mat.specularStrength = 0.1;
 
-    Object sphere4(vec3(0, 140, 0), 138);
-    sphere4.mat.colour = vec3(0.9, 0.9, 0.9);
+    Object sphere1(vec3(0, 0, 12), 0.5);
+    Object sphere2(vec3(1.5, 0, 12), 0.5);
+    Object sphere3(vec3(3, 0, 12), 0.5);
+    Object sphere4(vec3(4.5, 0, 12), 0.5);
+    Object sphere5(vec3(6, 0, 12), 0.5);
+    Object light1(vec3(3, -24, 40), 20);
 
-    Object sphere5(vec3(1.5, -1, 11.5), 1);
-    sphere5.mat.colour = vec3(1, 1, 1);
-    sphere5.mat.specularStrength = 0.9;
+    light1.mat.colour = vec3(1, 1, 1);
+    light1.mat.emissionColour = vec3(1, 1, 1);
+    light1.mat.emissionStrength = 2.0;
 
-    worldCamera.position = vec3(0, 0, 0);
+    sphere1.mat.colour = vec3(1, 1, 0);
+    sphere1.mat.specularStrength = 0.00;
+    sphere2.mat.colour = vec3(1, 1, 0);
+    sphere2.mat.specularStrength = 0.25;
+    sphere3.mat.colour = vec3(1, 1, 0);
+    sphere3.mat.specularStrength = 0.50;
+    sphere4.mat.colour = vec3(1, 1, 0);
+    sphere4.mat.specularStrength = 0.75;
+    sphere5.mat.colour = vec3(1, 1, 0);
+    sphere5.mat.specularStrength = 1.00;
 
+
+    worldCamera.position = vec3(0, -3, 0);
+
+
+    worldObjects.push_back(groundSphere);
     worldObjects.push_back(sphere1);
     worldObjects.push_back(sphere2);
-    //worldObjects.push_back(sphere3);
+    worldObjects.push_back(sphere3);
     worldObjects.push_back(sphere4);
     worldObjects.push_back(sphere5);
+    worldObjects.push_back(light1);
 
     lightSource = &worldObjects[2];
 
-    worldData.bounce_limit = 4;
+    worldData.bounce_limit = 6;
     worldData.scene_colour = vec3(0.5, 0.5, 1);
     worldData.sky_boundary = 100;
     worldData.sun_direction = vec3(0, -1, 0);

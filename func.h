@@ -318,8 +318,16 @@ vec3 random_direction() {
 
 vec3 random_hemi(vec3 normal) {
 	vec3 dir = normal;
-	rotate_x(dir, random(-1, 1) * (3.1415926 / 2));
-	rotate_y(dir, random(-1, 1) * (3.1415926 / 2));
+
+	double r1,  r2;
+	r1 = random(0, 1); r2 = random(0, 1);
+	double r = sqrt(-2 * log(r1));
+	double o = 2 * 3.1415 * r2;
+	r1 = r * cos(o);
+	r2 = r * sin(o);
+
+	rotate_x(dir, r1);
+	rotate_y(dir, r2);
 	return dir;
 }
 
@@ -344,6 +352,7 @@ vec3 sky_colour_1 = vec3(6.0 / 255.0, 70.0 / 255.0, 131.0 / 255.0);
 vec3 sky_colour_2 = vec3(194.0 / 255.0, 234.0 / 255.0, 236.0 / 255.0);
 
 vec3 scene_colour(vec3 dir) {
+	return vec3(0, 0, 0);
 	double s = angle_between(dir, vec3(0, -1, 0)) / (3.14159265 / 2);
 	if (s > 1.3)
 		return ground_colour;
@@ -373,7 +382,7 @@ vec3 raytrace(ray r) {
 			vec3 scaled = rc.normal_collide * (2 * dot_product(r.direction, rc.normal_collide));
 			vec3 specularDir = r.direction - scaled;
 			
-			vec3 diffuseDir = random_hemi(rc.normal_collide);;
+			vec3 diffuseDir = random_hemi(rc.normal_collide);
 
 			r.direction = lerp(diffuseDir, specularDir, rc.mat.specularStrength);
 
