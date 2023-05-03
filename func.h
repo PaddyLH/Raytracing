@@ -101,6 +101,13 @@ double magnitude(vec3& v) {
 double angle_between(vec3 a, vec3 b) {
 	return acos(dot_product(a, b) / (magnitude(a) * magnitude(b)));
 }
+vec3 cross(vec3 a, vec3 b) {
+	return vec3(
+		(a.y * b.z) - (a.z * b.y),
+		(a.z * b.x) - (a.x * b.z),
+		(a.x * b.y) - (a.y * b.x)
+	);
+}
 vec3 lerp(vec3 a, vec3 b, double k) {
 	return vec3(
 		(a.x * (1.0 - k)) + (b.x * k),
@@ -159,7 +166,7 @@ struct Object {
 	vec3 t1, t2, t3;
 
 	// Cuboid
-	vec3 c1, c2;
+	vec3 c1, c2, c3, c4;
 
 	Object() {
 		return;
@@ -173,6 +180,10 @@ struct Object {
 	Object(vec3 a1, vec3 a2, vec3 a3) {
 		t1 = a1; t2 = a2; t3 = a3;
 		type = tri;
+	}
+	Object(vec3 a1, vec3 a2, vec3 a3, vec3 a4) {
+		c1 = a1; c2 = a2; c3 = a3; c4 = a4;
+		type = cuboid;
 	}
 
 	ray_collision collided(ray r) {
@@ -226,6 +237,33 @@ struct Object {
 		else if (type == tri) 
 		{
 
+			vec3 edgeAB = t2 - t1;
+			vec3 edgeAC = t3 - t1;
+			vec3 normal = cross(edgeAB, edgeAC);
+			vec3 ao = r.position - t1;
+			vec3 dao = cross(ao, r.direction);
+
+			double determinant = -dot_product(r.direction, normal);
+			double invDet = 1.0 / determinant;
+
+			double dst = dot_product(ao, normal) * invDet;
+			double u = dot_product(edgeAC, dao) * invDet;
+			double v = -dot_product(edgeAB, dao) * invDet;
+			float w = 1 - u - v;
+
+			data.collided = determinant >= 0.000001
+				&& u >= 0
+				&& v >= 0
+				&& w >= 0
+				&& dst >= 0;
+
+			if (data.collided) {
+				data.point = r.position + (dst * r.direction);
+				data.normal_collide = normal;
+				data.normal_collide /= magnitude(data.normal_collide);
+				data.dist = dst;
+				data.mat = mat;
+			}
 
 
 		}
@@ -319,9 +357,9 @@ vec3 random_direction() {
 vec3 random_hemi(vec3 normal) {
 	vec3 dir = normal;
 
-	double r1,  r2;
+	double r1, r2;
 	r1 = random(0, 1); r2 = random(0, 1);
-	double r = sqrt(-2 * log(r1));
+	double r = sqrt(-2 * log(r1)) / 2;
 	double o = 2 * 3.1415 * r2;
 	r1 = r * cos(o);
 	r2 = r * sin(o);
@@ -352,7 +390,6 @@ vec3 sky_colour_1 = vec3(6.0 / 255.0, 70.0 / 255.0, 131.0 / 255.0);
 vec3 sky_colour_2 = vec3(194.0 / 255.0, 234.0 / 255.0, 236.0 / 255.0);
 
 vec3 scene_colour(vec3 dir) {
-	return vec3(0, 0, 0);
 	double s = angle_between(dir, vec3(0, -1, 0)) / (3.14159265 / 2);
 	if (s > 1.3)
 		return ground_colour;
@@ -386,9 +423,10 @@ vec3 raytrace(ray r) {
 
 			r.direction = lerp(diffuseDir, specularDir, rc.mat.specularStrength);
 
-			vec3 emittedLight = rc.mat.emissionColour;
-			emittedLight *= rc.mat.emissionStrength;
-			incomingLight += emittedLight * raycolour;
+			if (rc.mat.emissionStrength > 0) {
+				vec3 emittedLight = rc.mat.emissionStrength * rc.mat.emissionColour;
+				incomingLight += emittedLight * raycolour;
+			} 
 			raycolour *= rc.mat.colour;
 			//raycolour *= dot_product(r.direction, rc.normal_collide);
 		}

@@ -21,7 +21,7 @@ char key_down = '0';
 
 
 // Draws a pixel at X, Y (from top left corner)
-void DrawPixel(int X, int Y, u32 Color) {
+void DrawPixel(int X, int Y, u32 Color, bool c = false) {
     u32* Pixel = (u32*)BitmapMemory;
     Pixel += Y * BitmapWidth + X;
     if (invalid) {
@@ -30,14 +30,14 @@ void DrawPixel(int X, int Y, u32 Color) {
         frames = 1;
     }
     else {
-        if (*Pixel == 0xffffff) {
+        if (*Pixel == 0xffffff || c) {
             *Pixel = Color;
             return;
         }
         vec3 current = u32_colour(*Pixel);
-        current *= 7;
+        current *= 8;
         current += u32_colour(Color);
-        current /= 8;
+        current /= 9;
         frames += 1;
         *Pixel = current;
     }
@@ -88,16 +88,32 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LPa
             break;
         }
         case 'Q': {
+            worldCamera.position.y += 0.3;
             key_down = 'Q'; start_key = clock(); break;
         }
         case 'E': {
+            worldCamera.position.y -= 0.3;
             key_down = 'E'; start_key = clock(); break;
         }
         case 'W': {
+            worldCamera.position.z += 0.3;
             key_down = 'W'; start_key = clock(); break;
         }
         case 'S': {
+            worldCamera.position.z -= 0.3;
             key_down = 'S'; start_key = clock(); break;
+        }
+        case 'A': {
+            worldCamera.position.x -= 0.3;
+            key_down = 'A'; start_key = clock(); break;
+        }
+        case 'D': {
+            worldCamera.position.x += 0.3;
+            key_down = 'D'; start_key = clock(); break;
+        }
+        case 'F': {
+            worldCamera.position.x += 0.3;
+            key_down = 'F'; start_key = clock(); break;
         }
         }
         break;
@@ -208,41 +224,63 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CmdLine, i
     groundSphere.mat.colour = vec3(0.9, 0.9, 0.9);
     groundSphere.mat.specularStrength = 0.1;
 
-    Object sphere1(vec3(0, 0, 12), 0.5);
-    Object sphere2(vec3(1.5, 0, 12), 0.5);
-    Object sphere3(vec3(3, 0, 12), 0.5);
-    Object sphere4(vec3(4.5, 0, 12), 0.5);
-    Object sphere5(vec3(6, 0, 12), 0.5);
-    Object light1(vec3(3, -24, 40), 20);
+    Object tri1(vec3(0, 0, 0), vec3(7, 0, 0), vec3(0, 0, 7));
+    Object tri2(vec3(0, 0, 7), vec3(7, 0, 0), vec3(7, 0, 7));
+    Object tri3(vec3(0, 0, 7), vec3(7, 0, 7), vec3(7, -7, 7));
+    Object tri4(vec3(0, 0, 7), vec3(7, -7, 7), vec3(0, -7, 7));
+    Object tri5(vec3(7, 0, 0), vec3(7, -7, 7), vec3(7, 0, 7));
+    Object tri6(vec3(7, -7, 0), vec3(7, -7, 7), vec3(7, 0, 0));
+    tri1.mat.colour = vec3(0, 1, 1);
+    tri2.mat.colour = vec3(0, 1, 1);
+    tri3.mat.colour = vec3(1, 0, 1);
+    tri4.mat.colour = vec3(1, 0, 1);
+    tri5.mat.colour = vec3(1, 1, 0);
+    tri6.mat.colour = vec3(1, 1, 0);
 
-    light1.mat.colour = vec3(1, 1, 1);
-    light1.mat.emissionColour = vec3(1, 1, 1);
-    light1.mat.emissionStrength = 2.0;
-
-    sphere1.mat.colour = vec3(1, 1, 0);
-    sphere1.mat.specularStrength = 0.00;
-    sphere2.mat.colour = vec3(1, 1, 0);
-    sphere2.mat.specularStrength = 0.25;
-    sphere3.mat.colour = vec3(1, 1, 0);
-    sphere3.mat.specularStrength = 0.50;
-    sphere4.mat.colour = vec3(1, 1, 0);
-    sphere4.mat.specularStrength = 0.75;
-    sphere5.mat.colour = vec3(1, 1, 0);
-    sphere5.mat.specularStrength = 1.00;
+    tri5.mat.specularStrength = 1;
+    tri6.mat.specularStrength = 1;
 
 
-    worldCamera.position = vec3(0, -3, 0);
+
+    if (true) {
+
+        Object sphere1(vec3(0, -1, 5), 0.5);
+        Object sphere2(vec3(1.5, -1, 5), 0.5);
+        Object sphere3(vec3(3, -1, 5), 0.5);
+        Object sphere4(vec3(4.5, -1, 5), 0.5);
+        Object sphere5(vec3(6, -1, 5), 0.5);
+
+        sphere1.mat.colour = vec3(1, 1, 0);
+        sphere1.mat.specularStrength = 0.00;
+        sphere2.mat.colour = vec3(1, 1, 0);
+        sphere2.mat.specularStrength = 0.25;
+        sphere3.mat.colour = vec3(1, 1, 0);
+        sphere3.mat.specularStrength = 0.50;
+        sphere4.mat.colour = vec3(1, 1, 0);
+        sphere4.mat.specularStrength = 0.75;
+        sphere5.mat.colour = vec3(1, 1, 0);
+        sphere5.mat.specularStrength = 1.00;
+
+        worldObjects.push_back(sphere1);
+        worldObjects.push_back(sphere2);
+        worldObjects.push_back(sphere3);
+        worldObjects.push_back(sphere4);
+        worldObjects.push_back(sphere5);
+    }
 
 
-    worldObjects.push_back(groundSphere);
-    worldObjects.push_back(sphere1);
-    worldObjects.push_back(sphere2);
-    worldObjects.push_back(sphere3);
-    worldObjects.push_back(sphere4);
-    worldObjects.push_back(sphere5);
-    worldObjects.push_back(light1);
+    worldCamera.position = vec3(0, -10, 0);
 
-    lightSource = &worldObjects[2];
+
+    worldObjects.push_back(tri1);
+    worldObjects.push_back(tri2);
+    worldObjects.push_back(tri3);
+    worldObjects.push_back(tri4);
+    worldObjects.push_back(tri5);
+    worldObjects.push_back(tri6);
+
+    
+    
 
     worldData.bounce_limit = 6;
     worldData.scene_colour = vec3(0.5, 0.5, 1);
@@ -259,17 +297,12 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PWSTR CmdLine, i
         }
 
         if (key_down != '0') {
-
             double dt = double(clock() - start_key + 1) / 1000.0;
             start_key = clock();
-
             double s = dt * 0.4;
 
-            if (key_down == 'E') {
-                worldCamera.position.y += s;
-            }
-            else if (key_down == 'Q') {
-                worldCamera.position.y -= s;
+            if (key_down == 'F') {
+                worldData.rays_per_pixel = 1000;
             }
 
             invalid = true;
